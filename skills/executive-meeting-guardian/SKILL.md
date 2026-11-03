@@ -49,15 +49,6 @@ and changes:
 | `COLLAB - Approve and Restore Audio` | Apply the one permitted manual remediation after the approval task is approved |
 | `COLLAB - Verify Room Recovery` | Re-assess after a change with a fresh device read |
 
-Use the `servicenow-incidents` Canvas integration for
-incidents an engineer raises from Canvas:
-
-| Tool (operationId) | Use it to |
-| --- | --- |
-| `findIncidents` | Find the active incident for a failure signature (`correlation_id=<signature>^active=true`) or a room's recent incidents |
-| `createIncident` | Open an incident when no active one exists for the signature |
-| `addIncidentWorkNote` | Add new evidence to the existing incident |
-
 Self-heal (`COLLAB - Self-Heal Room`) and the Webex
 space buttons follow the org rules in the
 `executive-meeting-guardian-org-rules` skill.
@@ -142,8 +133,7 @@ Otherwise mark the corresponding assessment unknown.
 
 When the recommendation is BLOCKED or ATTENTION REQUIRED,
 let `COLLAB - Assess Room Readiness` open a ServiceNow
-incident, or from Canvas call `findIncidents` and then
-`createIncident` or `addIncidentWorkNote`. Keep one active
+incident. Keep one active
 incident per room: its `correlation_id` is the failure
 signature (`emg-<room id>-<sha256 prefix>`), and repeat
 findings add a work note to the open incident instead of
