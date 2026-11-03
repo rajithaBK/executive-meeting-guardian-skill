@@ -1,7 +1,15 @@
 policy:
   id: executive-room-readiness
-  version: "1.1"
+  version: "1.2"
   owner: collaboration-operations
+
+org:
+  name: Canada Collab
+  # Only these people can accept or decline self-heal proposals and use the control panel.
+  admins:
+    - rajithak@canadacollab.ca
+    - rkanthet@cisco.com
+  webex_space: Executive Meeting Guardian
 
 rooms:
   - id: toronto-executive-room
@@ -41,9 +49,9 @@ readiness:
     - diagnostics
     - active_call
 
-  # Known room configuration. Values are compared as strings. Keep in step with
-  # the golden config enforced by the "Desk Pro G2 Self-Healing" workflow so
-  # the two automations never undo each other.
+  # Known room configuration. Values are compared as strings. The self-heal
+  # rules below restore these values, so the older "Desk Pro G2 self-heal"
+  # schedule is disabled to keep a single automation in charge.
   configuration_baseline:
     Audio.DefaultVolume: "50"
     Conference.AutoAnswer.Mode: "Off"
@@ -87,6 +95,38 @@ remediation:
     - reboot_device
     - factory_reset
     - erase_configuration
+
+self_heal:
+  enabled: true
+  # The room macro reports changes within about two seconds; Cloud Control
+  # starts the self-heal workflow from the webhook in under a second.
+  detection: device_macro
+  approval:
+    # Proposal card in the Webex space with Accept / Decline buttons.
+    auto_accept_after_seconds: 5
+    # Declined issues are never proposed or healed again until an admin
+    # presses "Reset declined" in the control panel.
+    on_decline: suppress
+  never_during_active_call: true
+  lock_seconds: 60
+  verify_after_seconds: 6
+  rules:
+    - id: audio_volume
+      title: Audio volume outside the approved range
+      when: {status: Audio.Volume, outside: [45, 65]}
+      heal: {xapi_command: Audio.Volume.Set, arguments: {Level: 55}}
+    - id: ultrasound_disabled
+      title: Ultrasound pairing disabled (device shows "connected with issues")
+      when: {diagnostic: UltrasoundConfigSettings}
+      heal: {configuration: {Audio.Ultrasound.MaxVolume: 70}}
+    - id: configuration_drift
+      title: Room configuration differs from the baseline
+      when: {configuration_baseline: true}
+      heal: {configuration: baseline}
+  # Diagnostics without a rule are reported in the space and opened as a
+  # ServiceNow incident; nothing is changed on the device.
+  unhandled_diagnostics: notify_and_incident
+  incident_when_not_verified: true
 
 verification:
   require_fresh_device_status: true

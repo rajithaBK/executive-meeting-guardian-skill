@@ -58,6 +58,10 @@ Use the native Cloud Control workflows for changes:
 `COLLAB - Approve and Restore Audio`,
 `COLLAB - Verify Room Recovery`.
 
+Self-heal (`COLLAB - Self-Heal Room`) and the Webex
+space buttons follow the org rules in the
+`executive-meeting-guardian-org-rules` skill.
+
 Do not assume tools are available merely because
 their names appear in these instructions.
 
@@ -81,7 +85,7 @@ Otherwise mark the corresponding assessment unknown.
 3. Retrieve fresh health and diagnostics evidence.
 
 4. Load customer-defined room readiness policy
-   (`policies/executive-rooms.yaml`, report its version).
+   (`executive-rooms.policy.yaml`, report its version).
 
 5. Check configuration compliance:
    - Approved audio configuration
