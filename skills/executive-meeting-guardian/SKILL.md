@@ -158,6 +158,16 @@ Customer policy may define:
 These are customer preferences, not universal
 Cisco platform requirements.
 
+Canada Collab's business knowledge (room tiers and
+fallbacks, partners and how their side joins, event
+profiles, change freezes, the Quebec French rule and
+the security baseline) is in the
+`executive-meeting-guardian-customer-context` skill.
+Apply it whenever a question names a person, partner,
+event, site or "our standard". For go/no-go, partner,
+"what if", change-safety, compliance and trend
+questions, follow `executive-meeting-guardian-briefings`.
+
 ## Reporting template
 
 ### Meeting Experience Readiness

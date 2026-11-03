@@ -1,0 +1,235 @@
+context:
+  id: canada-collab-customer-context
+  version: "1.0"
+  owner: collaboration-operations
+  # Demo customer knowledge for Canada Collab. Device names and models are the
+  # real ones in the org; partners, people roles and dates are demo values to
+  # replace with the customer's own before production use.
+  timezone_default: America/Toronto
+
+sites:
+  - id: toronto
+    city: Toronto
+    province: ON
+    timezone: America/Toronto
+    onsite_support:
+      team: Toronto AV desk
+      hours: "07:30-18:00 Mon-Fri"
+      servicenow_group: Collaboration Operations
+      dispatch_minutes: 10
+  - id: montreal
+    city: Montreal
+    province: QC
+    timezone: America/Toronto
+    # Quebec Charter of the French Language (Bill 96): the in-room experience
+    # in Quebec offices must be available in French by default.
+    language_rule: {key: UserInterface.Language, required: ["French", "FrenchCanadian"]}
+    onsite_support:
+      team: Montreal facilities (no dedicated AV)
+      hours: "08:00-17:00 Mon-Fri"
+      servicenow_group: Collaboration Operations
+      dispatch_minutes: 45
+
+# Business tiers drive how strict a readiness answer is and who is told.
+tiers:
+  executive:
+    meaning: CEO, CFO and board use; customer and investor meetings
+    preflight_lead_minutes: [1440, 30]
+    teams_join_test_required: true
+    fallback_required: true
+    impact_if_failed: >
+      Executive meeting starts late or moves to a laptop; customer or board
+      sees the failure. Treat as Priority 2 in ServiceNow.
+  client:
+    meaning: Customer-facing project rooms
+    preflight_lead_minutes: [30]
+    teams_join_test_required: false
+    fallback_required: true
+    impact_if_failed: Customer meeting delayed; account team escalates.
+  standard:
+    meaning: Huddle rooms and personal desks
+    preflight_lead_minutes: []
+    teams_join_test_required: false
+    fallback_required: false
+    impact_if_failed: One team inconvenienced; normal ticket.
+
+rooms:
+  - id: toronto-executive-room
+    display_name: Toronto Executive Room
+    device: HWS Desk Pro G2
+    model: Cisco Desk Pro G2
+    site: toronto
+    tier: executive
+    used_by: CEO office
+    platforms_supported: [webex, microsoft-teams]
+    teams_method: cvi_or_webrtc
+    fallback: toronto-boardroom
+  - id: toronto-boardroom
+    display_name: Toronto Boardroom
+    device: HWS Board 75
+    model: Cisco Board Pro 75
+    site: toronto
+    tier: executive
+    used_by: Board and leadership team
+    platforms_supported: [webex, microsoft-teams]
+    teams_method: cvi_or_webrtc
+    fallback: toronto-executive-room
+  - id: toronto-huddle
+    display_name: Toronto Huddle
+    device: HWS Room Bar
+    model: Cisco Room Bar
+    site: toronto
+    tier: client
+    used_by: Account teams
+    platforms_supported: [webex, microsoft-teams]
+    teams_method: cvi_or_webrtc
+    # Audio.Ultrasound.MaxVolume is managed by a different authority on this
+    # device; ultrasound fixes become incidents, never automatic changes.
+    read_only_settings: [Audio.Ultrasound.MaxVolume]
+    fallback: toronto-boardroom
+  - id: montreal-teams-room
+    display_name: Montreal Teams Room
+    device: HWS MTR Board
+    model: Cisco Board Pro 55
+    site: montreal
+    tier: client
+    used_by: Quebec sales
+    # Intended standard: Microsoft Teams Rooms mode. The device reports RoomOS
+    # 26.10.1.8 (Webex mode), so the name and the standard disagree with reality.
+    intended_mode: microsoft-teams-rooms
+    platforms_supported: [webex, microsoft-teams]
+    teams_method: cvi_or_webrtc
+    fallback: montreal-project-room
+  - id: montreal-teams-desk
+    display_name: Montreal Teams Desk
+    device: HWS MTR Desk Pro
+    model: Cisco Desk Pro
+    site: montreal
+    tier: standard
+    intended_mode: microsoft-teams-rooms
+    platforms_supported: [webex, microsoft-teams]
+    teams_method: cvi_or_webrtc
+    fallback: null
+  - id: montreal-project-room
+    display_name: Montreal Project Room
+    device: Montreal
+    model: Cisco Room Bar
+    site: montreal
+    tier: client
+    used_by: Quebec delivery team
+    platforms_supported: [webex, microsoft-teams]
+    teams_method: cvi_or_webrtc
+    fallback: montreal-teams-room
+
+# Personal desks and phones are watched by self-heal but are never offered as
+# executive or fallback rooms.
+personal_devices:
+  desks: [HWS Desk, HWS Desk Mini, IWE Desk, Moose Meeting Desk]
+  phones:
+    - {device: HWS 9871, role: CEO executive assistant line, tier: executive}
+    - {device: HWS 9861, role: Boardroom reception, tier: client}
+    - {device: HWS 9851, role: Toronto front desk, tier: standard}
+    - {device: HWS 9841, role: Montreal front desk, tier: standard}
+    - {device: HWS 9811, role: Lobby courtesy phone, tier: standard}
+    - {device: HWS 8865, role: Lab, tier: standard}
+    - {device: HWS LAB PHONE, role: Lab, tier: standard}
+
+# Who we meet and how their side joins. Control Hub and Cloud Control only see
+# our devices; this is the knowledge of the other side.
+partners:
+  - name: Northwind Bank
+    relationship: Lending partner; quarterly covenant review with the CFO
+    platform: microsoft-teams
+    their_tenant_rules:
+      lobby: everyone_waits
+      anonymous_join: blocked
+    # Anonymous join blocked on their tenant means CVI and WebRTC guests wait
+    # in the lobby until someone admits them, or are rejected.
+    join_advice: >
+      Ask their organizer to admit the room from the lobby, or join from the
+      Toronto Executive Room with a named guest; never rely on one-touch
+      join alone.
+    language: en
+  - name: Contoso Health
+    relationship: Largest customer; monthly executive business review
+    platform: webex
+    their_tenant_rules:
+      lobby: external_waits
+      meeting_lock_after_minutes: 5
+    join_advice: >
+      Join in the first 5 minutes; their meetings lock and the room cannot
+      enter after that without the host.
+    language: en
+  - name: Fabrikam Quebec
+    relationship: Provincial partner; meetings in French
+    platform: microsoft-teams
+    their_tenant_rules:
+      lobby: everyone_waits
+      anonymous_join: allowed
+    join_advice: >
+      Use a Montreal room; interface and captions in French. Teams WebRTC is
+      enough; CVI not required.
+    language: fr
+  - name: Litware Capital
+    relationship: Investor; board observer
+    platform: zoom
+    their_tenant_rules: {}
+    # No room in the org is enabled for Zoom. The guardian must say so,
+    # not suggest a room.
+    join_advice: >
+      Not joinable from any Canada Collab room. Ask Litware for a Webex or
+      Teams invite, or use a laptop with the room as USB camera and speaker
+      where the model supports it.
+    language: en
+
+# Event profiles tighten the readiness bar for named meeting types.
+event_profiles:
+  board_meeting:
+    rooms: [toronto-boardroom]
+    fallback_rooms: [toronto-executive-room]
+    extra_checks:
+      - Teams or Webex join test in the last 24 hours on the main and fallback room
+      - At least one camera and the internal microphones connected
+      - Auto answer Off (privacy)
+      - No device change of any kind in the 2 hours before start
+    notify: [CEO executive assistant line, Collaboration Operations]
+  earnings_call:
+    rooms: [toronto-executive-room]
+    fallback_rooms: [toronto-boardroom]
+    extra_checks:
+      - Room booked 30 minutes before start for a sound check
+      - Volume within the approved range (45-65)
+      - Phone fallback HWS 9871 registered and idle
+    notify: [CEO executive assistant line, Investor relations]
+  customer_ebr:
+    rooms: [toronto-executive-room, toronto-boardroom, toronto-huddle]
+    extra_checks:
+      - Partner platform is one the room can join (see partners)
+      - Partner lobby rules explained to the meeting owner
+    notify: [Account team]
+
+# Change control the platform does not know about.
+change_control:
+  freezes:
+    - name: Q4 fiscal close
+      start: "2026-11-23"
+      end: "2026-12-04"
+      scope: executive and client rooms
+      allowed: self-heal fixes listed in the org rules only
+    - name: Board week
+      start: "2026-12-07"
+      end: "2026-12-11"
+      scope: toronto-boardroom, toronto-executive-room
+      allowed: nothing; readiness checks only
+  maintenance_window:
+    days: [Sat]
+    hours: "06:00-10:00"
+    timezone: America/Toronto
+
+# Customer security and privacy standard for executive and client rooms.
+# These settings exist in RoomOS; the values are this customer's choice.
+security_baseline:
+  - {key: Conference.AutoAnswer.Mode, expected: "Off", why: No silent call-in to executive rooms}
+  - {key: Conference.Encryption.Mode, expected: "On", why: Media always encrypted}
+  - {key: NetworkServices.HTTP.Mode, expected: "HTTPS", why: No plain HTTP to the device}
+  - {key: Standby.Control, expected: "On", why: Screens sleep when the room is empty}

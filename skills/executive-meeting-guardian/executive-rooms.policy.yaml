@@ -1,6 +1,6 @@
 policy:
   id: executive-room-readiness
-  version: "1.2"
+  version: "1.3"
   owner: collaboration-operations
 
 org:
@@ -98,14 +98,13 @@ remediation:
 
 self_heal:
   enabled: true
-  # Self-heal starts when the room's Control Hub status changes from
-  # "connected" to "connected with issues" or "disconnected". The room macro
-  # reports the diagnostics behind that status within about two seconds (Control
-  # Hub itself shows the change two to three minutes later), and a Control Hub
-  # status watch every minute catches disconnects and anything the macro missed.
+  # Self-heal starts when any room device or phone changes its Control Hub
+  # status from "connected" to "connected with issues" or "disconnected". No
+  # macro: a Control Hub status watch reads every device every 20 seconds.
   trigger:
     on_status_change_to: [connected_with_issues, disconnected]
-    sources: [device_macro, control_hub_status]
+    sources: [control_hub_status]
+    device_types: [roomdesk, phone]
     control_hub_poll_seconds: 20
     # Informational diagnostics that do not make Control Hub show "connected with issues".
     ignore_diagnostics: [MacrosRuntimeActive]
@@ -116,7 +115,7 @@ self_heal:
     # presses "Reset declined" in the control panel.
     on_decline: suppress
   never_during_active_call: true
-  lock_seconds: 60
+  lock_seconds: 120
   verify_after_seconds: 6
   rules:
     - id: ultrasound_disabled
