@@ -1,14 +1,14 @@
 ---
 name: executive-meeting-guardian-org-rules
 description: >
-  Canada Collab org rules for Executive Meeting Guardian self-heal.
+  Org rules (Canada Collab SE Demo) for Executive Meeting Guardian self-heal.
   Use when someone in AI Canvas asks what the org allows for executive
   rooms, wants to trigger a readiness check, verification or self-heal,
   asks why a room was (or was not) healed, or wants to change who can
   approve fixes, the thresholds, or the approval window.
 ---
 
-# Executive Meeting Guardian: org rules (Canada Collab)
+# Executive Meeting Guardian: org rules (Canada Collab SE Demo)
 
 These are the customer's rules, not Cisco defaults. Self-heal runs entirely in
 Cisco Cloud Control and reads its rules from the global variable
@@ -22,7 +22,7 @@ readiness procedure and report format.
 
 | Rule | Value |
 | --- | --- |
-| Organization | Canada Collab |
+| Organization | Canada Collab SE Demo (as named in Control Hub) |
 | Admins (only people who can accept, decline or use the control panel) | rajithak@canadacollab.ca, rkanthet@cisco.com |
 | Webex space for all Guardian messages | Executive Meeting Guardian |
 | Devices in scope | Every room device (Room Bar, Board Pro, Desk Pro, Room Kit, Desk) and phone in the org. Peripherals (navigators, cameras, microphones, monitors) follow their room device |
@@ -59,6 +59,10 @@ Audio` cover those.
 | --- | --- | --- |
 | `ultrasound_disabled` | `UltrasoundConfigSettings` | `Audio.Ultrasound.MaxVolume` 70 |
 | `internal_speaker_disabled` | `AudioInternalSpeakerDisabled` | `Audio.Output.InternalSpeaker.Mode` On |
+
+An issue with no automatic fix is reported once per device and then stays
+quiet for 240 minutes (`renotify_minutes`), even if Control Hub keeps
+flipping the device's status.
 
 Any other warning, error or critical diagnostic is not healed. It is reported
 in the space and opened as a ServiceNow incident by the workflow. The same
@@ -107,12 +111,19 @@ or ask in natural language):
 
 | Ask | Workflow |
 | --- | --- |
-| "Check the Toronto executive room" | `COLLAB - Assess Room Readiness` |
-| "Verify the room recovered" | `COLLAB - Verify Room Recovery` |
-| "Restore the audio, with approval" | `COLLAB - Approve and Restore Audio` |
+| "Check readiness of HWS Board 75" | `COLLAB - Assess Room Readiness` with Device = HWS Board 75 |
+| "Verify HWS Board 75 recovered" | `COLLAB - Verify Room Recovery` with Device = HWS Board 75 |
+| "Restore the audio on HWS Board 75, with approval" | `COLLAB - Approve and Restore Audio` with Device = HWS Board 75 |
 
-From the Webex space, the admin control panel card has: Readiness check,
-Verify, Simulate 'connected with issues', Show org rules and Reset declined
+The **Device** input takes a device name or id exactly as Control Hub shows
+it. The workflows pick it from the live device list and refuse to guess:
+if nothing or more than one device matches, they post the live device list
+and change nothing. Never invent a room name for a device.
+
+From the Webex space, the admin control panel card has a device picker
+built from the live Control Hub device list (with each device's current
+status) and the buttons Readiness check, Verify, Simulate 'connected with
+issues' (act on the picked device), Show org rules and Reset declined
 fixes. Simulate is for demos on test devices and is refused while the room is
 in a call.
 
@@ -125,8 +136,8 @@ Automatic triggers:
   (Control Hub status)**).
 - Webex button presses (`attachmentActions`) start
   `COLLAB - Guardian Card Actions`.
-- The **Executive Room Readiness Schedule** runs the readiness check on
-  weekdays at 7:00 AM and every 2 hours to 5:00 PM Eastern.
+- The old readiness schedule is disabled: readiness runs on demand for the
+  device you name, and self-heal watches every device.
 
 ## Changing the rules
 

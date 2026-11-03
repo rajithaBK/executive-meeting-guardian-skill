@@ -45,9 +45,9 @@ and changes:
 
 | Workflow | Use it to |
 | --- | --- |
-| `COLLAB - Assess Room Readiness` | Run the policy checks with fresh device reads, including the Webex and Teams join gates; opens or updates a ServiceNow incident when BLOCKED or ATTENTION REQUIRED |
-| `COLLAB - Approve and Restore Audio` | Apply the one permitted manual remediation after the approval task is approved |
-| `COLLAB - Verify Room Recovery` | Re-assess after a change with a fresh device read |
+| `COLLAB - Assess Room Readiness` | Run the policy checks on the device given in its **Device** input, with fresh device reads, including the Webex and Teams join gates; opens or updates a ServiceNow incident when BLOCKED or ATTENTION REQUIRED |
+| `COLLAB - Approve and Restore Audio` | Apply the one permitted manual remediation to the device given in its **Device** input, after the approval task is approved |
+| `COLLAB - Verify Room Recovery` | Re-assess the device given in its **Device** input after a change, with a fresh device read |
 
 Self-heal (`COLLAB - Self-Heal Room`) and the Webex
 space buttons follow the org rules in the
@@ -58,7 +58,9 @@ their names appear in these instructions.
 
 ## Required input
 
-- Room name or approved room identifier
+- Device name or id exactly as shown in Control Hub
+  (the workflows pick it from the live device list;
+  never invent a room name)
 - Meeting platform, if known
 - Meeting start time, if relevant
 - Business priority, explicitly supplied or
@@ -69,7 +71,9 @@ Otherwise mark the corresponding assessment unknown.
 
 ## Readiness procedure
 
-1. Identify the workspace and associated device.
+1. Identify the device from the live Control Hub
+   device list and use its display name and product
+   in the report.
 
 2. Confirm device identity and connectivity.
 
@@ -134,8 +138,8 @@ Otherwise mark the corresponding assessment unknown.
 When the recommendation is BLOCKED or ATTENTION REQUIRED,
 let `COLLAB - Assess Room Readiness` open a ServiceNow
 incident. Keep one active
-incident per room: its `correlation_id` is the failure
-signature (`emg-<room id>-<sha256 prefix>`), and repeat
+incident per device: its `correlation_id` is the failure
+signature (`emg-<first 8 characters of the device uuid>-<sha256 prefix>`), and repeat
 findings add a work note to the open incident instead of
 creating a duplicate. `COLLAB - Approve and Restore Audio`
 and `COLLAB - Verify Room Recovery` add the remediation and
@@ -158,20 +162,15 @@ Customer policy may define:
 These are customer preferences, not universal
 Cisco platform requirements.
 
-Canada Collab's business knowledge (room tiers and
-fallbacks, partners and how their side joins, event
-profiles, change freezes, the Quebec French rule and
-the security baseline) is in the
-`executive-meeting-guardian-customer-context` skill.
-Apply it whenever a question names a person, partner,
-event, site or "our standard". For go/no-go, partner,
-"what if", change-safety, compliance and trend
-questions, follow `executive-meeting-guardian-briefings`.
+For cross-device questions (what is not ready,
+why a device was or was not healed, flapping, drift,
+change safety, today's summary, offline devices),
+follow `executive-meeting-guardian-briefings`.
 
 ## Reporting template
 
 ### Meeting Experience Readiness
-Room:
+Device (Control Hub name and product):
 Meeting platform:
 Assessment time:
 Policy version:

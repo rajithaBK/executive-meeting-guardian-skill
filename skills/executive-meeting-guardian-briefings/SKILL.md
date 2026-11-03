@@ -1,135 +1,136 @@
 ---
 name: executive-meeting-guardian-briefings
 description: >
-  Answer business questions about Canada Collab meetings that need both live
-  device evidence and customer context: "will the board meeting work",
-  "can we meet Northwind from the CEO's room", "what if the boardroom fails
-  10 minutes before", "is it safe to change rooms this week", "are Montreal
-  rooms compliant", "which rooms keep breaking and what does it cost us",
-  and the weekly executive digest. Use for go/no-go, partner meeting,
-  fallback, change-freeze, compliance and trend questions.
+  Answer cross-device questions about meeting readiness from live data only:
+  which devices are not meeting-ready and which of those self-heal can fix,
+  why a device was or was not healed, which devices keep flipping status and
+  why, which devices drift from the readiness policy, whether a device is
+  safe to change right now, what the guardian did today, and which devices
+  are offline with or without an incident. Use for go/no-go, "why", drift,
+  flapping, change-safety and daily summary questions.
 ---
 
 # Executive Meeting Guardian: briefings
 
-Each playbook below combines three sources:
+Every answer is built from live sources at the time of the question. Device
+names, products and statuses come from Control Hub; never use a room name,
+person, partner or event that is not in one of these sources.
 
 | Source | Gives |
 | --- | --- |
-| Collaboration Control Hub agent, `COLLAB - Assess Room Readiness`, `COLLAB - Verify Room Recovery` | Live device status, diagnostics, settings, call state |
-| `executive-meeting-guardian-customer-context` | Rooms, tiers, partners, event profiles, freezes, language rule, security baseline, fallbacks, support |
-| Cloud Control variables `emg_room_status`, `emg_heal_decisions`, `emg_heal_suppressed`, `emg_last_assessment`, and ServiceNow incidents (`correlation_id` starts with `emg-`) | What the guardian already saw, healed, declined or escalated |
+| Collaboration Control Hub agent | Every device: display name, product, type, connection status, error codes, last seen, workspace |
+| `COLLAB - Assess Room Readiness` (input **Device**) | Fresh policy checks for one device: online, audio range, join method, Teams gate, cameras, baseline, diagnostics, active call |
+| `COLLAB - Verify Room Recovery` (input **Device**) | Fresh re-check after a change, compared with the last remediation |
+| Cloud Control variables | `emg_controlhub_status` (last status of every watched device and the self-heal queue), `emg_room_status` (per device: issues, open issues, last update), `emg_heal_decisions` (accept, decline, auto, with who and when), `emg_heal_suppressed` (declined fixes), `emg_heal_lock`, `emg_last_assessment`, `emg_last_remediation`, `emg_org_rules` |
+| Webex space **Executive Meeting Guardian** | The proposal, result, disconnect and incident cards, with times |
+| ServiceNow | Incidents whose `correlation_id` starts with `emg-<first 8 characters of the device uuid>-` |
 
-If a source is not available in this session, mark the dependent checks
-UNKNOWN and say which source was missing. Never fill a gap from memory.
+Rules for every answer:
 
-Always end with one verdict line: **GO**, **GO WITH CONDITIONS**,
-**NO-GO** or **UNKNOWN**, then the single next action and its owner.
+- Name devices exactly as Control Hub does, with the product:
+  "HWS Board 75 (Cisco Board Pro 75)". Do not invent friendly room names.
+- If a source is not available in this session, mark the dependent checks
+  UNKNOWN and say which source was missing.
+- Give times in US Eastern with the zone label (for example "11:14 AM EST").
+- End with one verdict line (**GO**, **GO WITH CONDITIONS**, **NO-GO** or
+  **UNKNOWN**) when the question asks about readiness, and with the single
+  next action and who can take it.
 
-## 1. Event go/no-go
+## 1. What is not meeting-ready right now
 
-Questions like "Will tomorrow's board meeting work?" or "Is the CEO's room
-ready for the earnings call at 4 PM?"
+Questions like "Which devices are not meeting-ready right now, and which of
+those can the guardian fix on its own?"
 
-1. Resolve the event profile, its rooms and fallback rooms.
-2. Run the readiness check on every room and fallback room (fresh reads).
-3. Add each profile `extra_checks` item; unverifiable items are UNKNOWN.
-4. Check change control: is a freeze active between now and the event?
-5. Check guardian history for each room in the last 7 days: heals,
-   declines, unverified fixes, open incidents.
-6. Verdict: NO-GO if a mandatory check fails on the main room and the
-   fallback is not ready. GO WITH CONDITIONS if the main room fails but the
-   fallback is ready, or only advisory checks fail.
-7. List who is notified (`notify`) and the on-site support window.
+1. List every room device (type `roomdesk`) from Control Hub that is not
+   `connected`, with its status and error codes. Leave out peripherals
+   (navigators, cameras, microphones, displays); they show up in their room
+   device's error codes.
+2. For each, map the error codes or diagnostics to the org rules in
+   `emg_org_rules`:
+   - in `diagnostic_heals`: self-heal fixes it automatically (say the setting
+     and target value), unless the setting is read-only on that device;
+   - not in the rules: report and ServiceNow incident, no automatic fix;
+   - disconnected or offline: cannot be fixed remotely.
+3. Add whether the fix is suppressed (`emg_heal_suppressed`) and whether an
+   incident is open.
 
-## 2. Partner meeting check
+## 2. Why was (or wasn't) a device healed
 
-Questions like "Can we meet Northwind Bank from the Toronto Executive
-Room?" or "Which room should I book for Litware?"
+Questions like "Why didn't the guardian fix HWS Room Bar?"
 
-1. Resolve the partner. Compare its platform with each candidate room's
-   `platforms_supported`. Rooms that cannot join are excluded, with the
-   reason.
-2. For each remaining room, run readiness with the partner's platform
-   (Teams gate for Teams partners).
-3. Explain the partner's tenant rules in plain language (lobby, anonymous
-   join, meeting lock) and give the `join_advice`.
-4. If the partner language is `fr`, prefer Montreal rooms that pass the
-   language rule.
-5. Recommend one room and one fallback, or say no room can join.
+Check in this order and stop at the first that explains it:
+1. Control Hub has not shown the change yet (it lags 40 seconds to about
+   3 minutes), or the device never went back to `connected` before breaking
+   again.
+2. The fix was declined (`emg_heal_suppressed`).
+3. The device was in a call (deferred; it is proposed again after the call).
+4. The setting is read-only on that device (for example
+   `CONFIG_MANAGED_BY_DIFFERENT_AUTHORITY`): it becomes a notice and an
+   incident.
+5. No rule exists for that diagnostic.
+6. The issue was already reported in the last `renotify_minutes`.
+7. The fix did not verify (an incident was opened).
+8. Control Hub reads failed (HTTP 401 means the account key needs a new
+   authorization).
 
-## 3. Failure rehearsal ("what if")
+## 3. Flapping devices
 
-Questions like "What happens if the boardroom fails 10 minutes before the
-board meeting?"
+Questions like "Which devices keep flipping between Connected and Connected
+with issues, and why?"
 
-Do not break anything. Describe the plan from evidence:
-1. Readiness of the fallback room right now.
-2. What self-heal would do for the likely failures (org rules: ultrasound,
-   internal speaker) and what it would not (disconnect, read-only setting,
-   active call), with the time it typically takes (15 s to 3 min to see the
-   change, about 15 s more to heal).
-3. Who is called (on-site support, dispatch minutes, hours) and whether the
-   event falls outside support hours.
-4. The phone fallback for the event profile, if any, and its status.
-5. A 3-step script for the executive assistant.
+1. From the Webex space cards and `emg_room_status`, count status changes per
+   device in the period asked (default today).
+2. Name the diagnostic behind each flip. `UltrasoundInterference` on two or
+   more devices at the same time usually means devices close enough to hear
+   each other's ultrasound; say which devices reported it in the same window.
+3. Recommend the cause fix (separate the devices, or lower ultrasound on one
+   of them through an approved change), not a rule change.
 
-## 4. Change safety
+## 4. Policy drift
 
-Questions like "Can I push the new volume baseline to the boardroom
-today?"
+Questions like "Which devices drift from our readiness policy?"
 
-1. Check active and upcoming freezes for the room ids.
-2. Check the room's calendar evidence if available, and the call state now.
-3. Check open guardian incidents on the room.
-4. Answer ALLOWED / ALLOWED IN MAINTENANCE WINDOW / NOT ALLOWED, with the
-   rule that decides it. Never perform the change from this playbook; hand
-   off to the approval workflow when allowed.
+1. For each room device the user names, or for each device that is
+   connected, run `COLLAB - Assess Room Readiness` with that device.
+2. Report the "Known configuration maintained" and "Audio volume" checks per
+   device with the values read (for example "Conference.AutoAnswer.Mode is On,
+   expected Off").
+3. Fixes go through `COLLAB - Approve and Restore Audio` (audio only) or a
+   human; this playbook never changes a device.
 
-## 5. Compliance sweep
+## 5. Is it safe to change a device now
 
-Questions like "Are our Montreal rooms compliant?" or "Which executive
-rooms break our security standard?"
+Questions like "Is it safe to change HWS Desk Pro G2 right now?"
 
-1. Select rooms by site or tier.
-2. Read `UserInterface.Language` (Quebec), the `security_baseline` keys and
-   the device software (intended mode) for each.
-3. One row per room: each rule PASS / FAIL / UNKNOWN with the value read.
-4. Proposed fixes go through the approval workflow and respect freezes.
-   Mode drift (RoomOS where Microsoft Teams Rooms is intended) is a project
-   for a human, not a fix.
+Answer SAFE or NOT SAFE with the deciding fact:
+- the active-call count from a fresh status read (unknown is NOT SAFE);
+- an open self-heal proposal or the self-heal lock held for that device;
+- the device's current Control Hub status.
 
-## 6. Reliability and cost
+## 6. What did the guardian do today
 
-Questions like "Which rooms keep breaking, and what does it cost us?"
+Questions like "What did the guardian fix today and what is still open?"
 
-1. Load guardian history (`emg_heal_decisions`, ServiceNow `emg-`
-   incidents) for the period asked, default 30 days.
-2. Per room: number of issues, healed automatically, declined, unverified,
-   disconnects and total time not ready.
-3. Weight by tier `impact_if_failed`; rank executive rooms first.
-4. Name recurring patterns (same issue, same room, same weekday and hour)
-   and suggest the cause, not just the fix. Hand rule changes to
-   `executive-meeting-guardian-learning`.
+From the Webex space cards, `emg_heal_decisions` and ServiceNow:
+- each fix: device, issue, decision (auto-accepted, accepted, declined) and
+  by whom, time from Control Hub change to verified heal;
+- each notice without a fix and its incident number;
+- disconnects and reconnects;
+- what is still open, with an owner.
 
-## 7. Weekly executive digest
+## 7. Offline devices
 
-Questions like "Give me this week's executive meeting room digest."
+Questions like "Which devices are offline, for how long, and do they have an
+incident?"
 
-One page, plain language, for a non-technical reader:
-- Headline: are executive rooms ready for next week (verdict per room).
-- Upcoming events from `event_profiles` and freezes in the next 14 days.
-- What the guardian fixed by itself, with time to heal.
-- What needs a human (open incidents, read-only settings, mode drift,
-  compliance FAILs), each with an owner.
-- Partner meetings at risk (platform not supported, strict lobby).
+List room devices and phones that are `disconnected` or `offline_expired`
+with their last-seen time, how long ago that was, and whether an `emg-`
+incident is open for them. Devices that were already offline when the
+watcher started do not have an incident until they change; say so.
 
 ## Guard rails
 
-- Read-only by default. Any change goes through `COLLAB - Approve and
-  Restore Audio` or the self-heal rules, with approval and a verified
-  readback.
-- Never change or test a room that is in a call.
+- Read-only. Any change goes through the approval workflow or the self-heal
+  rules, with approval and a verified readback.
+- Never change or test a device that is in a call.
 - Never reboot, factory reset or run arbitrary commands.
-- Never invent partners, events, fallbacks or dates that are not in the
-  customer context.
