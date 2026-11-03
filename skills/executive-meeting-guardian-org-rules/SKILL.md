@@ -10,11 +10,13 @@ description: >
 
 # Executive Meeting Guardian: org rules (Canada Collab)
 
-These are the customer's rules, not Cisco defaults. The source of truth is
-`executive-meeting-guardian/executive-rooms.policy.yaml` (sections `org` and
-`self_heal`, policy version 1.2). At run time the Cloud Control workflows read the same rules
-from the global variable `emg_org_rules`. If the two disagree, report the
-difference and treat the variable as what is actually enforced.
+These are the customer's rules, not Cisco defaults. The enforced self-heal
+rules (volume range, baseline, diagnostic fixes, lock) live in
+`skills/executive-meeting-guardian-org-rules/org-rules.json` on `main` in this
+repo. Cisco Cloud Control reads that file on every room event, checks it
+against safety bounds, and keeps the last known good copy in the global
+variable `emg_org_rules`. Identity (admins, space, rooms) and timing (the
+5-second approval window, verify delay) stay in Cloud Control.
 
 Use this skill together with `executive-meeting-guardian`, which covers the
 readiness procedure and report format.
@@ -33,6 +35,8 @@ Anyone who is not an admin and presses a Guardian button gets a
 
 ## Self-heal rules
 
+Values below are policy 1.2. Always read `org-rules.json` for the values in force.
+
 | Rule id | Detected when | Fix |
 | --- | --- | --- |
 | `audio_volume` | `Audio.Volume` outside 45–65 | `Audio.Volume.Set` Level 55 |
@@ -40,7 +44,7 @@ Anyone who is not an admin and presses a Guardian button gets a
 | `configuration_drift` | A baseline setting differs: `Audio.DefaultVolume` 50, `Conference.AutoAnswer.Mode` Off, `Standby.Control` On | Restore the baseline value |
 
 Any other diagnostic is not healed. It is reported in the space and opened as
-a ServiceNow incident.
+a ServiceNow incident by the workflow.
 
 Guard rails, all mandatory:
 
@@ -102,10 +106,13 @@ Automatic triggers:
 
 ## Changing the rules
 
-Only on request from an admin. Edit the policy file, run
-`cloud-control/generate_workflows.py` in the collaboration-experience-guardian repo, and update `emg_org_rules` with the
-generated value (no re-import needed for thresholds, admins or the approval
-window). Bump the policy version and say what changed.
+Rule changes are pull requests on `org-rules.json`; a human reviews and
+merges. The `executive-meeting-guardian-learning` skill proposes them from
+the self-heal history. After merge, the next room event loads the new rules
+and the Webex space shows an "Org rules updated from GitHub" card. A change
+that breaks the safety bounds is rejected, announced as "Org rules change
+rejected", and the previous rules stay in force. Identity and timing changes
+are made in Cloud Control by an admin.
 
 ## Messages
 
