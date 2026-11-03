@@ -25,27 +25,29 @@ readiness procedure and report format.
 | Organization | Canada Collab |
 | Admins (only people who can accept, decline or use the control panel) | rajithak@canadacollab.ca, rkanthet@cisco.com |
 | Webex space for all Guardian messages | Executive Meeting Guardian |
-| Rooms in scope | Toronto Executive Room (Desk Pro G2) |
+| Devices in scope | Every room device (Room Bar, Board Pro, Desk Pro, Room Kit, Desk) and phone in the org. Peripherals (navigators, cameras, microphones, monitors) follow their room device |
 
 Anyone who is not an admin and presses a Guardian button gets a
 "Not authorized" reply and nothing changes.
 
 ## What triggers self-heal
 
-Self-heal starts when a room's Control Hub status changes:
+Self-heal starts when a device's Control Hub status changes:
 
 | Change | What happens |
 | --- | --- |
-| Connected -> **Connected with issues** | Self-heal proposal in the space within seconds; auto-accepted after 5 s; fix applied and verified |
-| Connected -> **Disconnected** | "Room disconnected" card and a ServiceNow incident (a disconnected room cannot be healed remotely) |
-| Disconnected -> Connected | "Room back online" card and a work note on the incident |
+| Connected -> **Connected with issues** | Self-heal proposal for that device in the space; auto-accepted after 5 s; fix applied and verified |
+| Connected -> **Disconnected** | "Device disconnected" card and a ServiceNow incident for that device (a disconnected device cannot be healed remotely) |
+| Disconnected -> Connected | "Device back online" card and a work note on its incident |
 
-Two sources feed this. The room macro reports the diagnostics behind
-"connected with issues" within about two seconds, because Control Hub itself
-shows the new status 40 seconds to 3 minutes later. `COLLAB - Watch Control Hub
-Status` reads the Control Hub status every 20 seconds, reports disconnects,
-and forwards any "connected with issues" the macro missed. An issue already
-being handled, or declined, is never proposed twice.
+No macro is used. `COLLAB - Watch Control Hub Status` reads the Control Hub
+status of every room device and phone every 20 seconds. Control Hub shows a
+change 40 seconds to about 3 minutes after it happens, so a proposal usually
+appears 15 seconds to 3 minutes after the change. Devices that were already
+disconnected or connected with issues when the watch started do not raise
+anything until they change again. Changed devices are queued and
+`COLLAB - Self-Heal Room` handles them one at a time. An issue already being
+handled, or declined for that device, is never proposed twice.
 
 Volume or setting changes that do not change the Control Hub status do not
 trigger self-heal; the readiness check and `COLLAB - Approve and Restore
@@ -59,26 +61,30 @@ Audio` cover those.
 | `internal_speaker_disabled` | `AudioInternalSpeakerDisabled` | `Audio.Output.InternalSpeaker.Mode` On |
 
 Any other warning, error or critical diagnostic is not healed. It is reported
-in the space and opened as a ServiceNow incident by the workflow.
+in the space and opened as a ServiceNow incident by the workflow. The same
+happens when the setting is read-only on that device (for example a Room Bar
+in Microsoft Teams Rooms mode reports `CONFIG_MANAGED_BY_DIFFERENT_AUTHORITY`)
+and for phones, which report their Control Hub error codes.
 
 Guard rails, all mandatory:
 
-- Never change a room that is in a call, or whose call state cannot be read.
+- Never change a device that is in a call, or whose call state cannot be read.
   The check is repeated immediately before the change; if busy, the heal is
-  deferred and the space is told why.
-- One self-heal per room at a time (60 second lock).
+  deferred, the space is told why, and it is proposed again after the call.
+- One device at a time (queue plus a lock that expires after 120 seconds).
 - Verify 6 seconds after the change with a fresh device read. Report PASS only
   when the device returns the expected value.
-- If the fix cannot be verified, open a ServiceNow incident (one per room and
-  failure signature; repeats add a work note).
+- If the fix cannot be verified, open a ServiceNow incident (one per device;
+  repeats add a work note).
 - Never reboot, factory reset, erase configuration or run arbitrary commands.
 - Only the fixes in the table above. Anything else needs the approval workflow
   `COLLAB - Approve and Restore Audio` or a human.
 
 ## Approval flow
 
-1. The room changes to "connected with issues" (for example ultrasound set to
-   0 in Control Hub) and `COLLAB - Self-Heal Room` starts within seconds.
+1. A device changes to "connected with issues" (for example ultrasound set to
+   0 in Control Hub). When Control Hub shows it, `COLLAB - Watch Control Hub
+   Status` queues the device and `COLLAB - Self-Heal Room` starts.
 2. The first message is a **Self-heal proposal** adaptive card in the
    Executive Meeting Guardian space, with **Accept** and **Decline**.
 3. If no admin answers within **5 seconds**, the fix is **auto-accepted** and
@@ -90,9 +96,9 @@ Guard rails, all mandatory:
 6. The outcome (healed and verified, deferred, declined, or incident opened) is
    posted as a card in the proposal's thread.
 
-When asked why a room was not healed, check in this order: a decline in
-`emg_heal_suppressed`, an active call, the lock, then an unverified result
-or an incident.
+When asked why a device was not healed, check in this order: whether
+Control Hub has shown the change yet, a decline in `emg_heal_suppressed`, an
+active call, a read-only setting, then an unverified result or an incident.
 
 ## Triggers
 
@@ -112,10 +118,11 @@ in a call.
 
 Automatic triggers:
 
-- Room macro events to the **Executive Meeting Guardian events** webhook
-  start `COLLAB - Self-Heal Room` (self-heal within seconds).
 - The **EMG Control Hub status watch** rule runs
   `COLLAB - Watch Control Hub Status` every minute (three reads, 20 s apart).
+- The watch hands changed devices to `COLLAB - Self-Heal Room` through the
+  **Executive Meeting Guardian control** webhook (rule **EMG self-heal
+  (Control Hub status)**).
 - Webex button presses (`attachmentActions`) start
   `COLLAB - Guardian Card Actions`.
 - The **Executive Room Readiness Schedule** runs the readiness check on
