@@ -69,6 +69,28 @@ their names appear in these instructions.
 If a field is missing, ask only if necessary.
 Otherwise mark the corresponding assessment unknown.
 
+## Readiness thresholds (from executive-rooms.policy.yaml v1.3)
+
+These are the values in `executive-rooms.policy.yaml`.
+Apply them even when only this file is loaded.
+
+| Check | Read from the device | Compliant when | Mandatory |
+| --- | --- | --- | --- |
+| Device connectivity | Control Hub connection status | `connected` | yes |
+| Audio volume | status `Audio.Volume` | 45 to 65 (target 55); below 45 or above 65 is FAIL | yes |
+| Webex join method | config `Conference.DefaultCall.Protocol` | `Spark`, `Sip` or `Auto` | yes |
+| Baseline: default volume | config `Audio.DefaultVolume` | `50` | no |
+| Baseline: auto answer | config `Conference.AutoAnswer.Mode` | `Off` | no |
+| Baseline: standby | config `Standby.Control` | `On` | no |
+| Teams join | a separately verified join test | test recorded in the last 24 hours; configuration alone is never PASS | for Teams meetings |
+
+Always read `Audio.Volume` and the three baseline
+configurations for the device; Control Hub inventory
+(status, MAC, IP, SIP URI, software, accessories) does
+not answer a readiness question. `COLLAB - Assess Room
+Readiness` performs these reads. If a value cannot be
+read, mark that check UNKNOWN and never report READY.
+
 ## Readiness procedure
 
 1. Identify the device from the live Control Hub
