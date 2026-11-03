@@ -10,13 +10,10 @@ description: >
 
 # Executive Meeting Guardian: org rules (Canada Collab)
 
-These are the customer's rules, not Cisco defaults. The enforced self-heal
-rules (volume range, baseline, diagnostic fixes, lock) live in
-`skills/executive-meeting-guardian-org-rules/org-rules.json` on `main` in this
-repo. Cisco Cloud Control reads that file on every room event, checks it
-against safety bounds, and keeps the last known good copy in the global
-variable `emg_org_rules`. Identity (admins, space, rooms) and timing (the
-5-second approval window, verify delay) stay in Cloud Control.
+These are the customer's rules, not Cisco defaults. Self-heal runs entirely in
+Cisco Cloud Control and reads its rules from the global variable
+`emg_org_rules` (admins, space, rooms, triggers, fixes, approval window). It
+does not read this repository; this skill explains the rules to AI Canvas.
 
 Use this skill together with `executive-meeting-guardian`, which covers the
 readiness procedure and report format.
@@ -33,18 +30,36 @@ readiness procedure and report format.
 Anyone who is not an admin and presses a Guardian button gets a
 "Not authorized" reply and nothing changes.
 
-## Self-heal rules
+## What triggers self-heal
 
-Values below are policy 1.2. Always read `org-rules.json` for the values in force.
+Self-heal starts when a room's Control Hub status changes:
 
-| Rule id | Detected when | Fix |
+| Change | What happens |
+| --- | --- |
+| Connected -> **Connected with issues** | Self-heal proposal in the space within seconds; auto-accepted after 5 s; fix applied and verified |
+| Connected -> **Disconnected** | "Room disconnected" card and a ServiceNow incident (a disconnected room cannot be healed remotely) |
+| Disconnected -> Connected | "Room back online" card and a work note on the incident |
+
+Two sources feed this. The room macro reports the diagnostics behind
+"connected with issues" within about two seconds, because Control Hub itself
+shows the new status 40 seconds to 3 minutes later. `COLLAB - Watch Control Hub
+Status` reads the Control Hub status every 20 seconds, reports disconnects,
+and forwards any "connected with issues" the macro missed. An issue already
+being handled, or declined, is never proposed twice.
+
+Volume or setting changes that do not change the Control Hub status do not
+trigger self-heal; the readiness check and `COLLAB - Approve and Restore
+Audio` cover those.
+
+## Self-heal fixes
+
+| Rule id | Diagnostic (Control Hub error code) | Fix |
 | --- | --- | --- |
-| `audio_volume` | `Audio.Volume` outside 45–65 | `Audio.Volume.Set` Level 55 |
-| `ultrasound_disabled` | Diagnostic `UltrasoundConfigSettings` (device shows "connected with issues") | `Audio.Ultrasound.MaxVolume` 70 |
-| `configuration_drift` | A baseline setting differs: `Audio.DefaultVolume` 50, `Conference.AutoAnswer.Mode` Off, `Standby.Control` On | Restore the baseline value |
+| `ultrasound_disabled` | `UltrasoundConfigSettings` | `Audio.Ultrasound.MaxVolume` 70 |
+| `internal_speaker_disabled` | `AudioInternalSpeakerDisabled` | `Audio.Output.InternalSpeaker.Mode` On |
 
-Any other diagnostic is not healed. It is reported in the space and opened as
-a ServiceNow incident by the workflow.
+Any other warning, error or critical diagnostic is not healed. It is reported
+in the space and opened as a ServiceNow incident by the workflow.
 
 Guard rails, all mandatory:
 
@@ -62,8 +77,8 @@ Guard rails, all mandatory:
 
 ## Approval flow
 
-1. The room macro reports the change within about two seconds and
-   `COLLAB - Self-Heal Room` starts.
+1. The room changes to "connected with issues" (for example ultrasound set to
+   0 in Control Hub) and `COLLAB - Self-Heal Room` starts within seconds.
 2. The first message is a **Self-heal proposal** adaptive card in the
    Executive Meeting Guardian space, with **Accept** and **Decline**.
 3. If no admin answers within **5 seconds**, the fix is **auto-accepted** and
@@ -91,14 +106,16 @@ or ask in natural language):
 | "Restore the audio, with approval" | `COLLAB - Approve and Restore Audio` |
 
 From the Webex space, the admin control panel card has: Readiness check,
-Verify, Simulate volume drift, Simulate 'connected with issues', Show org
-rules and Reset declined fixes. The two Simulate buttons are for demos on
-test devices and are refused while the room is in a call.
+Verify, Simulate 'connected with issues', Show org rules and Reset declined
+fixes. Simulate is for demos on test devices and is refused while the room is
+in a call.
 
 Automatic triggers:
 
 - Room macro events to the **Executive Meeting Guardian events** webhook
   start `COLLAB - Self-Heal Room` (self-heal within seconds).
+- The **EMG Control Hub status watch** rule runs
+  `COLLAB - Watch Control Hub Status` every minute (three reads, 20 s apart).
 - Webex button presses (`attachmentActions`) start
   `COLLAB - Guardian Card Actions`.
 - The **Executive Room Readiness Schedule** runs the readiness check on
@@ -106,13 +123,9 @@ Automatic triggers:
 
 ## Changing the rules
 
-Rule changes are pull requests on `org-rules.json`; a human reviews and
-merges. The `executive-meeting-guardian-learning` skill proposes them from
-the self-heal history. After merge, the next room event loads the new rules
-and the Webex space shows an "Org rules updated from GitHub" card. A change
-that breaks the safety bounds is rejected, announced as "Org rules change
-rejected", and the previous rules stay in force. Identity and timing changes
-are made in Cloud Control by an admin.
+An admin changes `emg_org_rules` in Cloud Control (or `policies/executive-rooms.yaml`
+in the main repo, then regenerates). Changes apply to the next event; no
+re-import is needed.
 
 ## Messages
 
