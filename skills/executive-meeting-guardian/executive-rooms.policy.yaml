@@ -1,0 +1,113 @@
+policy:
+  id: executive-room-readiness
+  version: "1.1"
+  owner: collaboration-operations
+
+rooms:
+  - id: toronto-executive-room
+    display_name: Toronto Executive Room
+    criticality: executive
+    # Webex device id; overridden by ROOM_DEVICE_<ROOM_ID> in the environment.
+    device_id: "Y2lzY29zcGFyazovL3VybjpURUFNOnVzLXdlc3QtMl9yL0RFVklDRS9iZDFkZTZlNy1iZTIxLTRlYmItYTA1NC1jZGVlYTZiMTNhOGQ="
+    test_device: true
+    meeting_providers:
+      - webex
+      - microsoft-teams
+    required_peripherals:
+      cameras: 1
+      # Desk Pro has an integrated screen that is not reported under
+      # Video.Output.Connector; set to 1 or more for Room Bar and Board Pro rooms
+      # that drive external displays.
+      displays: 0
+      microphones: true
+
+readiness:
+  require_device_online: true
+  require_applicable_join_method: true
+  require_end_to_end_join_test: false
+  target_audio_volume: 55
+  approved_audio_volume_range:
+    min: 45
+    max: 65
+
+  mandatory_checks:
+    - device_connectivity
+    - audio_policy
+    - meeting_join_configuration
+
+  advisory_checks:
+    - peripherals
+    - configuration_baseline
+    - diagnostics
+    - active_call
+
+  # Known room configuration. Values are compared as strings. Keep in step with
+  # the golden config enforced by the "Desk Pro G2 Self-Healing" workflow so
+  # the two automations never undo each other.
+  configuration_baseline:
+    Audio.DefaultVolume: "50"
+    Conference.AutoAnswer.Mode: "Off"
+    Standby.Control: "On"
+
+  webex:
+    join_methods:
+      - key: Conference.DefaultCall.Protocol
+        accepted: ["Spark", "Sip", "Auto"]
+
+  microsoft_teams:
+    # Each method is evidence that the room *can* join Teams. None of them
+    # proves that a specific meeting will connect.
+    join_methods:
+      - id: teams_webrtc
+        label: Microsoft Teams WebRTC
+        # RoomOS exposes only the compatibility toggle; Teams WebRTC itself is
+        # enabled at the organization level in Control Hub. Presence of this key
+        # shows the firmware supports Teams WebRTC, nothing more.
+        key: WebRTC.Provider.MicrosoftTeams.CompatibilityMode
+        accepted: ["Off", "On"]
+      - id: teams_cvi
+        label: Cloud Video Interop (SIP)
+        key: Conference.DefaultCall.Protocol
+        accepted: ["Spark", "Sip", "Auto"]
+    # Teams gate: a separately verified join test is required before the
+    # room is declared ready for Teams.
+    require_verified_join_test: true
+    join_test_max_age_hours: 24
+    require_obtp_calendar: false
+
+remediation:
+  prohibit_during_active_call: true
+  require_approval_for_writes: true
+  approval_max_age_minutes: 30
+
+  permitted_actions:
+    - set_demo_audio_volume
+
+  prohibited_actions:
+    - reboot_device
+    - factory_reset
+    - erase_configuration
+
+verification:
+  require_fresh_device_status: true
+  require_post_change_readback: true
+  fail_on_unknown_result: true
+  readback_attempts: 5
+  readback_interval_seconds: 2
+
+incidents:
+  provider: servicenow
+  create_on: [BLOCKED, ATTENTION REQUIRED]
+  category: Collaboration
+  subcategory: Meeting Room
+  assignment_group: Collaboration Operations
+  # executive rooms get urgency 1 / impact 2 (priority 2 in the default matrix)
+  urgency: "1"
+  impact: "2"
+  add_verification_note: true
+  resolve_on_verified_recovery: false
+
+reporting:
+  show_customer_policy_version: true
+  show_evidence_sources: true
+  show_unknown_checks: true
