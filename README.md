@@ -7,25 +7,14 @@ Agent skills for Cisco Cloud Control AI Canvas (GitHub Skills integration) for e
 | --- | --- |
 | `skills/executive-meeting-guardian/SKILL.md` | Readiness assessment: procedure, remediation policy, report format |
 | `skills/executive-meeting-guardian/executive-rooms.policy.yaml` | The customer readiness policy |
-| `skills/executive-meeting-guardian-org-rules/SKILL.md` | Canada Collab org rules for self-heal: admins, Webex space, Accept / Decline with 5 second auto-accept, decline suppression, triggers |
-| `skills/executive-meeting-guardian-org-rules/org-rules.json` | **The enforced self-heal rules.** Cisco Cloud Control reads this file from `main` on every room event |
+| `skills/executive-meeting-guardian-org-rules/SKILL.md` | Canada Collab org rules for self-heal: status-change triggers (connected -> connected with issues / disconnected), admins, Webex space, Accept / Decline with 5 second auto-accept, decline suppression |
+| `skills/executive-meeting-guardian-org-rules/org-rules.json` | Proposed rule values used by the learning skill. Self-heal itself reads `emg_org_rules` in Cloud Control, not this file |
 | `skills/executive-meeting-guardian-learning/SKILL.md` | Learn from self-heal history and propose rule changes as pull requests |
 | `integrations/guardian-github.openapi.yaml` | The `guardian-github` Canvas integration: read rules and history, open rule pull requests |
 
-## How a rule change flows
+## Self-heal and this repo
 
-1. Every self-heal outcome is written by Cloud Control to the private repo `rajithaBK/emg-guardian-history`.
-2. AI Canvas (learning skill + `guardian-github`) finds patterns and opens a pull request that edits `org-rules.json`.
-3. A human reviews and merges. Canvas cannot merge.
-4. On the next room event Cloud Control loads the new rules, checks them against safety bounds, posts
-   "Org rules updated from GitHub" in the Webex space, and applies them. Out-of-bounds rules are rejected and the
-   last known good rules stay in force.
-
-## Safety bounds enforced by Cloud Control
-
-- `volume`: integers, 20 <= min < target < max <= 90
-- Settings in `baseline` and `diagnostic_heals`: `Audio.DefaultVolume` (0-100), `Audio.Ultrasound.MaxVolume` (0-90),
-  `Conference.AutoAnswer.Mode` (On/Off), `Standby.Control` (On/Off), `Conference.DefaultCall.Protocol` (Auto/Sip/Spark/H323)
-- `lock_seconds`: 30-600
-- Not editable from GitHub: admins, Webex space, rooms, the 5 second approval window, verification timing, and
-  "never change a room in an active call".
+Room self-heal runs entirely in Cisco Cloud Control (room macro, Control Hub status watch, Webex cards,
+ServiceNow) and reads its rules from the Cloud Control variable `emg_org_rules`. Nothing in this repository is
+read at run time; the skills here explain the rules and the rooms to AI Canvas. The learning skill and the
+`guardian-github` integration are kept for experiments and are not part of the self-heal path.

@@ -98,9 +98,17 @@ remediation:
 
 self_heal:
   enabled: true
-  # The room macro reports changes within about two seconds; Cloud Control
-  # starts the self-heal workflow from the webhook in under a second.
-  detection: device_macro
+  # Self-heal starts when the room's Control Hub status changes from
+  # "connected" to "connected with issues" or "disconnected". The room macro
+  # reports the diagnostics behind that status within about two seconds (Control
+  # Hub itself shows the change two to three minutes later), and a Control Hub
+  # status watch every minute catches disconnects and anything the macro missed.
+  trigger:
+    on_status_change_to: [connected_with_issues, disconnected]
+    sources: [device_macro, control_hub_status]
+    control_hub_poll_seconds: 20
+    # Informational diagnostics that do not make Control Hub show "connected with issues".
+    ignore_diagnostics: [MacrosRuntimeActive]
   approval:
     # Proposal card in the Webex space with Accept / Decline buttons.
     auto_accept_after_seconds: 5
@@ -111,21 +119,20 @@ self_heal:
   lock_seconds: 60
   verify_after_seconds: 6
   rules:
-    - id: audio_volume
-      title: Audio volume outside the approved range
-      when: {status: Audio.Volume, outside: [45, 65]}
-      heal: {xapi_command: Audio.Volume.Set, arguments: {Level: 55}}
     - id: ultrasound_disabled
-      title: Ultrasound pairing disabled (device shows "connected with issues")
+      title: Ultrasound pairing disabled
       when: {diagnostic: UltrasoundConfigSettings}
       heal: {configuration: {Audio.Ultrasound.MaxVolume: 70}}
-    - id: configuration_drift
-      title: Room configuration differs from the baseline
-      when: {configuration_baseline: true}
-      heal: {configuration: baseline}
-  # Diagnostics without a rule are reported in the space and opened as a
-  # ServiceNow incident; nothing is changed on the device.
+    - id: internal_speaker_disabled
+      title: Internal speaker disabled
+      when: {diagnostic: AudioInternalSpeakerDisabled}
+      heal: {configuration: {Audio.Output.InternalSpeaker.Mode: "On"}}
+  # Warning, error and critical diagnostics without a rule are reported in the
+  # space and opened as a ServiceNow incident; nothing is changed on the device.
   unhandled_diagnostics: notify_and_incident
+  # A disconnected room cannot be healed remotely: it is reported in the space
+  # and opened as a ServiceNow incident, and a note is added when it returns.
+  on_disconnect: notify_and_incident
   incident_when_not_verified: true
 
 verification:
