@@ -36,27 +36,18 @@ Use this skill when a user asks to:
 
 ## Available capabilities
 
-Prefer the native Collaboration Control Hub agent
-for existing supported meeting, call, device and
-workspace investigations.
+Use the native Collaboration Control Hub agent for
+device, workspace, meeting and call evidence: status,
+connection state, diagnostics and current settings.
 
-Use authorized room-experience OpenAPI tools for
-customer-specific readiness checks and narrow
-device operations:
+Use the native Cloud Control workflows for checks
+and changes:
 
-| Tool (operationId) | Use it to |
+| Workflow | Use it to |
 | --- | --- |
-| `listRooms` | Find the approved room identifiers in policy |
-| `assessRoomReadiness` | Run the policy checks with fresh device reads |
-| `recordJoinTest` | Record a separately verified Teams or Webex join test |
-| `restoreAudioVolume` | Apply the one permitted remediation, with an approval record |
-| `verifyRoomRecovery` | Re-assess after a change and compare against the prior result |
-| `createIncident` | Open or update a ServiceNow incident for a failed room |
-
-Use the native Cloud Control workflows for changes:
-`COLLAB - Assess Room Readiness`,
-`COLLAB - Approve and Restore Audio`,
-`COLLAB - Verify Room Recovery`.
+| `COLLAB - Assess Room Readiness` | Run the policy checks with fresh device reads, including the Webex and Teams join gates; opens or updates a ServiceNow incident when BLOCKED or ATTENTION REQUIRED |
+| `COLLAB - Approve and Restore Audio` | Apply the one permitted manual remediation after the approval task is approved |
+| `COLLAB - Verify Room Recovery` | Re-assess after a change with a fresh device read |
 
 Self-heal (`COLLAB - Self-Heal Room`) and the Webex
 space buttons follow the org rules in the
@@ -141,8 +132,8 @@ Otherwise mark the corresponding assessment unknown.
 ## Incident management
 
 When the recommendation is BLOCKED or ATTENTION REQUIRED,
-open a ServiceNow incident with `createIncident` (or let
-`COLLAB - Assess Room Readiness` do it). Keep one active
+let `COLLAB - Assess Room Readiness` open a ServiceNow
+incident. Keep one active
 incident per room: its `correlation_id` is the failure
 signature (`emg-<room id>-<sha256 prefix>`), and repeat
 findings add a work note to the open incident instead of
