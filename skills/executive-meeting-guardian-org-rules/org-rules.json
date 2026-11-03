@@ -1,5 +1,5 @@
 {
-  "policy_version": "1.3",
+  "policy_version": "1.2",
   "about": "Canada Collab org rules for Executive Meeting Guardian self-heal. Cisco Cloud Control reads this file from main on every room event; changes take effect on the next event once a pull request is merged. Values outside the safety bounds in README.md are rejected and the last known good rules stay in force.",
   "volume": {
     "min": 45,
@@ -13,7 +13,8 @@
   },
   "baseline": {
     "Audio.DefaultVolume": "50",
-    "Conference.AutoAnswer.Mode": "Off"
+    "Conference.AutoAnswer.Mode": "Off",
+    "Standby.Control": "On"
   },
   "lock_seconds": 60
 }
