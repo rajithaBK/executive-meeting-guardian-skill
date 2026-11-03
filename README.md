@@ -5,15 +5,15 @@ Agent skills for Cisco Cloud Control AI Canvas (GitHub Skills integration) for e
 
 | Path | What it is |
 | --- | --- |
-| `skills/executive-meeting-guardian/SKILL.md` | Readiness assessment: procedure, remediation policy, report format |
-| `skills/executive-meeting-guardian/executive-rooms.policy.yaml` | The customer readiness policy |
-| `skills/executive-meeting-guardian-org-rules/SKILL.md` | Canada Collab org rules for self-heal: status-change triggers (connected -> connected with issues / disconnected), admins, Webex space, Accept / Decline with 5 second auto-accept, decline suppression |
+| `skills/executive-meeting-guardian/SKILL.md` | Readiness assessment for one device: procedure, remediation policy, report format |
+| `skills/executive-meeting-guardian/executive-rooms.policy.yaml` | The readiness policy (thresholds and checks; no static room list) |
+| `skills/executive-meeting-guardian-org-rules/SKILL.md` | Org rules for self-heal: status-change triggers (connected -> connected with issues / disconnected), admins, Webex space, Accept / Decline with 5 second auto-accept, decline suppression, device input |
 | `skills/executive-meeting-guardian-org-rules/org-rules.json` | Proposed rule values used by the learning skill. Self-heal itself reads `emg_org_rules` in Cloud Control, not this file |
-| `skills/executive-meeting-guardian-customer-context/SKILL.md` | How to apply Canada Collab's business knowledge on top of live device evidence |
-| `skills/executive-meeting-guardian-customer-context/customer-context.yaml` | Rooms and tiers, fallbacks, partners and their join rules, event profiles, change freezes, Quebec French rule, security baseline, on-site support |
-| `skills/executive-meeting-guardian-briefings/SKILL.md` | Playbooks for go/no-go, partner meeting, "what if", change safety, compliance, reliability and weekly digest questions |
+| `skills/executive-meeting-guardian-briefings/SKILL.md` | Cross-device questions answered from live Control Hub, Cloud Control and ServiceNow data |
 | `skills/executive-meeting-guardian-learning/SKILL.md` | Learn from self-heal history and propose rule changes as pull requests |
 | `integrations/guardian-github.openapi.yaml` | The `guardian-github` Canvas integration: read rules and history, open rule pull requests |
+
+Nothing here names a room or a device. Device names come from Control Hub at run time.
 
 ## Self-heal and this repo
 
@@ -24,18 +24,16 @@ read at run time; the skills here explain the rules and the rooms to AI Canvas. 
 
 ## Questions to ask in AI Canvas
 
-Control Hub and Cloud Control know the devices; these questions also need the customer's business
-context, so they only work with the skills above.
+Each answer combines live Control Hub data with this org's readiness policy, self-heal rules and guardian history,
+which Cloud Control and Control Hub do not hold on their own. Use the device names exactly as Control Hub shows them.
 
-| Ask | What makes it customer specific |
+| Ask | What it uses |
 | --- | --- |
-| "Will tomorrow's board meeting in the Toronto Boardroom work, and is the fallback room ready?" | Event profile extra checks, fallback room, notify list, 7-day guardian history |
-| "Can we meet Northwind Bank on Teams from the CEO's room? What will their side do to us?" | Partner tenant rules: lobby on, anonymous join blocked |
-| "Litware Capital sent a Zoom invite for the board observer call. Which room should I book?" | No room supports Zoom: the answer is "none" plus the workaround |
-| "Fabrikam Quebec wants to meet in French next week. Which Montreal room is ready and compliant?" | Quebec French-language rule, partner language, Montreal support hours |
-| "What happens if the boardroom fails 10 minutes before the board meeting? Write the script for the executive assistant." | Fallback, self-heal limits, on-site dispatch time, phone fallback |
-| "Can I push a new volume baseline to the boardroom on Nov 25?" | Q4 fiscal close freeze; maintenance window |
-| "Our 'MTR' rooms: are they really running Microsoft Teams Rooms like our standard says?" | Intended mode versus the RoomOS the devices report |
-| "Which executive rooms break our security standard right now?" | Customer security baseline (auto answer, encryption, HTTPS, standby) |
-| "Which rooms kept breaking this month, and what did it cost us in executive meeting risk?" | Guardian history and ServiceNow incidents weighted by business tier |
-| "Give me next week's executive meeting room digest for the CEO's office." | Upcoming events, freezes, partner risk and open items, in plain language |
+| "Which room devices are not meeting-ready right now, and which of those can the guardian fix on its own?" | Control Hub status and error codes, org rules (fixable, read-only, no rule) |
+| "Run a readiness check on HWS Board 75. Is it ready for a Teams meeting?" | Readiness workflow with Device = HWS Board 75; Teams gate (configuration is not proof) |
+| "Why didn't the guardian fix HWS Room Bar?" | Control Hub lag, declined fixes, call state, read-only settings, re-notify window, account key health |
+| "Which devices keep flipping between Connected and Connected with issues today, and why?" | Guardian cards and per-device status; ultrasound interference between nearby devices |
+| "Which devices drift from our readiness policy?" | Readiness checks per device: volume range, auto answer, default volume, standby |
+| "Is it safe to change HWS Desk Pro G2 right now?" | Fresh active-call read, open proposal, self-heal lock |
+| "What did the guardian fix today, how long did each fix take, and what is still open in ServiceNow?" | Decisions, verified heals, incidents per device |
+| "Which devices are offline, since when, and do they have an incident?" | Control Hub last seen, `emg-` incidents per device |

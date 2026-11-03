@@ -11,7 +11,7 @@ description: >
 
 ## Purpose
 
-Every self-heal outcome in Canada Collab's executive rooms is recorded in
+Every self-heal outcome on the org's devices is recorded in
 GitHub. Turn that history into insight, and when the evidence supports it,
 propose a change to the org rules as a pull request. A human reviews and
 merges; Cisco Cloud Control applies the merged rules on the next room event.
@@ -37,7 +37,7 @@ and "never change a room in an active call" are not editable here.
 
 1. Load HISTORY. Say how many events, which rooms, the date range, and how
    many are `seeded` (demo history) versus live.
-2. Convert times to the room's timezone (America/Toronto) before looking
+2. Convert times to US Eastern (America/New_York) before looking
    for time patterns.
 3. Look for these patterns, and quantify each one:
    - **Recurring trigger**: the same issue in the same room at the same

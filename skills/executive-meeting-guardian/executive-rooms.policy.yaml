@@ -4,31 +4,15 @@ policy:
   owner: collaboration-operations
 
 org:
-  name: Canada Collab
+  name: Canada Collab SE Demo
   # Only these people can accept or decline self-heal proposals and use the control panel.
   admins:
     - rajithak@canadacollab.ca
     - rkanthet@cisco.com
   webex_space: Executive Meeting Guardian
 
-rooms:
-  - id: toronto-executive-room
-    display_name: Toronto Executive Room
-    criticality: executive
-    # Webex device id; overridden by ROOM_DEVICE_<ROOM_ID> in the environment.
-    device_id: "Y2lzY29zcGFyazovL3VybjpURUFNOnVzLXdlc3QtMl9yL0RFVklDRS9iZDFkZTZlNy1iZTIxLTRlYmItYTA1NC1jZGVlYTZiMTNhOGQ="
-    test_device: true
-    meeting_providers:
-      - webex
-      - microsoft-teams
-    required_peripherals:
-      cameras: 1
-      # Desk Pro has an integrated screen that is not reported under
-      # Video.Output.Connector; set to 1 or more for Room Bar and Board Pro rooms
-      # that drive external displays.
-      displays: 0
-      microphones: true
-
+# No static room list: the Cloud Control workflows pick the device at run time
+# from the live Control Hub device list.
 readiness:
   require_device_online: true
   require_applicable_join_method: true
@@ -98,14 +82,18 @@ remediation:
 
 self_heal:
   enabled: true
-  # Self-heal starts when any room device or phone changes its Control Hub
-  # status from "connected" to "connected with issues" or "disconnected". No
-  # macro: a Control Hub status watch reads every device every 20 seconds.
+  # Self-heal starts when a device's Control Hub status changes from
+  # "connected" to "connected with issues" or "disconnected". No macro is
+  # needed: a Control Hub status watch reads every device in the org every
+  # 20 seconds (Control Hub shows a change 40 s to 2.5 min after it happens),
+  # then reads the device's diagnostics through the cloud xAPI.
   trigger:
     on_status_change_to: [connected_with_issues, disconnected]
     sources: [control_hub_status]
-    device_types: [roomdesk, phone]
     control_hub_poll_seconds: 20
+    # Device types watched. Peripherals (navigators, cameras, microphones,
+    # monitors) follow their room device and appear in its error codes.
+    device_types: [roomdesk, phone]
     # Informational diagnostics that do not make Control Hub show "connected with issues".
     ignore_diagnostics: [MacrosRuntimeActive]
   approval:
@@ -115,6 +103,7 @@ self_heal:
     # presses "Reset declined" in the control panel.
     on_decline: suppress
   never_during_active_call: true
+  # Devices are handled one at a time; the lock expires on its own if a run fails.
   lock_seconds: 120
   verify_after_seconds: 6
   rules:
@@ -129,6 +118,9 @@ self_heal:
   # Warning, error and critical diagnostics without a rule are reported in the
   # space and opened as a ServiceNow incident; nothing is changed on the device.
   unhandled_diagnostics: notify_and_incident
+  # An issue with no automatic fix is reported once per device, then stays
+  # quiet for this long even if Control Hub keeps flipping the status.
+  renotify_minutes: 240
   # A disconnected room cannot be healed remotely: it is reported in the space
   # and opened as a ServiceNow incident, and a note is added when it returns.
   on_disconnect: notify_and_incident
