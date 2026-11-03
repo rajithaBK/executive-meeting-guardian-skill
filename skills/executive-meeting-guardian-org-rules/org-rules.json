@@ -16,5 +16,5 @@
     "Conference.AutoAnswer.Mode": "Off",
     "Standby.Control": "On"
   },
-  "lock_seconds": 60
+  "lock_seconds": 61
 }
