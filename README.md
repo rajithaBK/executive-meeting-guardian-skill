@@ -14,7 +14,7 @@ Agent skills for Cisco Cloud Control AI Canvas (GitHub Skills integration) for e
 
 ## Self-heal and this repo
 
-Room self-heal runs entirely in Cisco Cloud Control (room macro, Control Hub status watch, Webex cards,
+Self-heal runs entirely in Cisco Cloud Control (Control Hub status watch for every device, no macro, Webex cards,
 ServiceNow) and reads its rules from the Cloud Control variable `emg_org_rules`. Nothing in this repository is
 read at run time; the skills here explain the rules and the rooms to AI Canvas. The learning skill and the
 `guardian-github` integration are kept for experiments and are not part of the self-heal path.
